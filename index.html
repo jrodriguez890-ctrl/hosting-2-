@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valledupar — Ciudad de la Música</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:wght@300;400;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --gold: #C9962D;
+    --gold-light: #F2D07E;
+    --deep: #1A0A00;
+    --terracota: #B84A2E;
+    --cream: #F9F1E0;
+    --green: #2D6A3F;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Crimson Pro', serif; background: var(--deep); color: var(--cream); overflow-x: hidden; }
+
+  /* LANG TOGGLE */
+  #lang-toggle {
+    position: fixed; top: 18px; right: 24px; z-index: 1000;
+    display: flex; background: rgba(26,10,0,0.9); border: 1px solid var(--gold);
+    border-radius: 30px; overflow: hidden; backdrop-filter: blur(8px);
+  }
+  #lang-toggle button {
+    padding: 6px 18px; border: none; background: transparent; color: var(--gold);
+    font-family: 'Crimson Pro', serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+  }
+  #lang-toggle button.active { background: var(--gold); color: var(--deep); }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    display: flex; align-items: center; padding: 14px 40px;
+    background: rgba(26,10,0,0.93); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(201,150,45,0.2);
+  }
+  .nav-brand { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--gold); margin-right: auto; }
+  .nav-links { display: flex; gap: 32px; list-style: none; margin-right: 120px; }
+  .nav-links a { color: var(--cream); text-decoration: none; font-size: 15px; font-weight: 300; letter-spacing: 0.5px; transition: color 0.3s; opacity: 0.8; }
+  .nav-links a:hover { color: var(--gold); opacity: 1; }
+
+  /* HERO */
+  #hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .hero-bg-img {
+    position: absolute; inset: 0;
+    background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Valledupar_desde_el_cielo.jpg/1280px-Valledupar_desde_el_cielo.jpg');
+    background-size: cover; background-position: center;
+    filter: brightness(0.32) saturate(0.85);
+  }
+  .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(26,10,0,0.45) 0%, rgba(26,10,0,0.15) 40%, rgba(26,10,0,0.88) 100%); }
+  .hero-pattern { position: absolute; inset: 0; opacity: 0.03; background-image: repeating-linear-gradient(45deg, var(--gold) 0, var(--gold) 1px, transparent 0, transparent 50%); background-size: 30px 30px; }
+  .hero-content { position: relative; text-align: center; padding: 0 20px; }
+  .hero-eyebrow { font-family: 'Bebas Neue', sans-serif; letter-spacing: 8px; font-size: 13px; color: var(--gold); margin-bottom: 16px; opacity: 0; animation: fadeUp 1s 0.3s forwards; }
+  .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(60px, 12vw, 120px); font-weight: 900; line-height: 0.9; color: var(--cream); opacity: 0; animation: fadeUp 1s 0.6s forwards; text-shadow: 0 4px 30px rgba(0,0,0,0.7); }
+  .hero-title span { color: var(--gold); font-style: italic; }
+  .hero-sub { font-size: 20px; font-weight: 300; color: var(--cream); opacity: 0; animation: fadeUp 1s 0.9s forwards; margin-top: 20px; letter-spacing: 1px; }
+  .hero-scroll { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--gold); font-size: 11px; letter-spacing: 3px; animation: fadeIn 2s 1.5s both; }
+  .scroll-line { width: 1px; height: 60px; background: linear-gradient(to bottom, var(--gold), transparent); animation: scrollLine 2s ease-in-out infinite; }
+
+  @keyframes scrollLine { 0%,100%{height:60px;opacity:1} 50%{height:30px;opacity:0.4} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+  /* SECTIONS */
+  section { padding: 100px 0; }
+  .section-header { text-align: center; margin-bottom: 70px; padding: 0 20px; }
+  .section-num { font-family: 'Bebas Neue', sans-serif; font-size: 120px; color: rgba(201,150,45,0.07); line-height: 1; margin-bottom: -40px; }
+  .section-label { font-family: 'Bebas Neue', sans-serif; letter-spacing: 6px; font-size: 12px; color: var(--gold); margin-bottom: 10px; }
+  .section-title { font-family: 'Playfair Display', serif; font-size: clamp(36px, 5vw, 62px); font-weight: 700; color: var(--cream); line-height: 1.1; }
+  .section-title em { color: var(--gold); font-style: italic; }
+  .section-desc { max-width: 600px; margin: 16px auto 0; font-size: 18px; font-weight: 300; opacity: 0.75; line-height: 1.7; }
+  .bg-alt { background: rgba(255,255,255,0.02); }
+
+  /* SUBSECTIONS */
+  .subsection { margin: 0 auto 80px; padding: 0 40px; max-width: 1300px; }
+  .subsection-title {
+    font-family: 'Playfair Display', serif; font-size: 26px; color: var(--gold-light);
+    margin-bottom: 30px; padding-bottom: 12px; border-bottom: 1px solid rgba(201,150,45,0.25);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .subsection-title::before { content: ''; width: 40px; height: 2px; background: var(--gold); flex-shrink: 0; }
+
+  /* CARDS */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+  .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(201,150,45,0.15); border-radius: 4px; overflow: hidden; transition: transform 0.4s, border-color 0.4s, box-shadow 0.4s; }
+  .card:hover { transform: translateY(-6px); border-color: rgba(201,150,45,0.5); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .card-img-wrap { overflow: hidden; height: 230px; position: relative; background: #2D1500; }
+  .card-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s; }
+  .card:hover .card-img { transform: scale(1.05); }
+  /* fallback icon shown when image fails */
+  .card-img-wrap .fallback-icon {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-size: 56px; background: linear-gradient(135deg, #2D1400, #3D2000);
+    color: rgba(201,150,45,0.5);
+  }
+  .card-img.broken + .fallback-icon { display: flex; }
+
+  .card-body { padding: 22px 24px; }
+  .card-tag { font-family: 'Bebas Neue', sans-serif; font-size: 11px; letter-spacing: 3px; color: var(--gold); margin-bottom: 8px; }
+  .card-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--cream); margin-bottom: 10px; font-weight: 600; }
+  .card-text { font-size: 15px; line-height: 1.65; opacity: 0.75; font-weight: 300; }
+  .card-credit { font-size: 11px; opacity: 0.3; margin-top: 10px; font-style: italic; }
+
+  /* MAP */
+  #mapa { padding: 100px 0; }
+  #map-container { max-width: 1300px; margin: 0 auto; padding: 0 40px; }
+  #map { height: 550px; border-radius: 4px; border: 1px solid rgba(201,150,45,0.3); overflow: hidden; }
+  .map-routes { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; justify-content: center; }
+  .route-btn { padding: 10px 22px; border: 1px solid rgba(201,150,45,0.4); background: transparent; color: var(--gold-light); font-family: 'Crimson Pro', serif; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 2px; transition: all 0.3s; letter-spacing: 0.5px; }
+  .route-btn:hover, .route-btn.active { background: var(--gold); color: var(--deep); border-color: var(--gold); }
+
+  /* FOOTER */
+  footer { padding: 60px 40px 40px; text-align: center; border-top: 1px solid rgba(201,150,45,0.15); }
+  .footer-brand { font-family: 'Bebas Neue', sans-serif; font-size: 40px; letter-spacing: 6px; color: var(--gold); margin-bottom: 12px; }
+  .footer-text { opacity: 0.4; font-size: 14px; }
+
+  /* REVEAL */
+  .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 768px) { .nav-links { display: none; } .subsection { padding: 0 16px; } }
+</style>
+</head>
+<body>
+
+<div id="lang-toggle">
+  <button class="active" onclick="setLang('es')">ES</button>
+  <button onclick="setLang('en')">EN</button>
+</div>
+
+<nav>
+  <div class="nav-brand">VALLEDUPAR</div>
+  <ul class="nav-links">
+    <li><a href="#musica"      data-es="Música"      data-en="Music">Música</a></li>
+    <li><a href="#naturaleza"  data-es="Naturaleza"  data-en="Nature">Naturaleza</a></li>
+    <li><a href="#gastronomia" data-es="Gastronomía" data-en="Gastronomy">Gastronomía</a></li>
+    <li><a href="#cultura"     data-es="Cultura"     data-en="Culture">Cultura</a></li>
+    <li><a href="#mapa"        data-es="Mapa"        data-en="Map">Mapa</a></li>
+  </ul>
+</nav>
+
+<!-- ======= HERO ======= -->
+<section id="hero">
+  <div class="hero-bg-img" id="heroBg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-pattern"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow" data-es="COLOMBIA · CESAR · CIUDAD DE LA MÚSICA" data-en="COLOMBIA · CESAR · CITY OF MUSIC">COLOMBIA · CESAR · CIUDAD DE LA MÚSICA</div>
+    <h1 class="hero-title">Valle<span>dupar</span></h1>
+    <p class="hero-sub" data-es="Donde el vallenato nació y el alma canta" data-en="Where vallenato was born and the soul sings">Donde el vallenato nació y el alma canta</p>
+  </div>
+  <div class="hero-scroll">
+    <span data-es="EXPLORAR" data-en="EXPLORE">EXPLORAR</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+
+<!-- ======= S1: MÚSICA ======= -->
+<section id="musica">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div class="section-label" data-es="PATRIMONIO MUSICAL · UNESCO 2015" data-en="MUSICAL HERITAGE · UNESCO 2015">PATRIMONIO MUSICAL · UNESCO 2015</div>
+    <h2 class="section-title" data-es="El Alma del <em>Vallenato</em>" data-en="The Soul of <em>Vallenato</em>">El Alma del <em>Vallenato</em></h2>
+    <p class="section-desc" data-es="Cuna del vallenato, Patrimonio Inmaterial de la Humanidad por la UNESCO desde 2015." data-en="Birthplace of vallenato, recognized by UNESCO as Intangible Heritage of Humanity since 2015.">Cuna del vallenato, Patrimonio Inmaterial de la Humanidad por la UNESCO desde 2015.</p>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Festival de la Leyenda Vallenata" data-en="Festival de la Leyenda Vallenata">Festival de la Leyenda Vallenata</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Festival Vallenata"
+            src="img/Festival de la Leyenda Vallenata.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🎶</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="FESTIVAL ANUAL" data-en="ANNUAL FESTIVAL">FESTIVAL ANUAL</div>
+          <h4 class="card-title" data-es="Festival de la Leyenda Vallenata" data-en="Festival de la Leyenda Vallenata">Festival de la Leyenda Vallenata</h4>
+          <p class="card-text" data-es="Celebrado cada abril desde 1968, es el festival folclórico más importante de Colombia. Miles de turistas llenan Valledupar para escuchar la mejor música vallenata en vivo, con concursos de acordeón, caja, guacharaca y canto." data-en="Celebrated every April since 1968, it is Colombia's most important folk festival. Thousands of tourists fill Valledupar to hear live vallenato music in competitions of accordion, caja, guacharaca, and singing.">Celebrado cada abril desde 1968, es el festival folclórico más importante de Colombia. Miles de turistas llenan Valledupar para escuchar la mejor música vallenata en vivo, con concursos de acordeón, caja, guacharaca y canto.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Acordeón vallenato"
+            src="img/El Rey Vallenato.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🪗</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="COMPETENCIA" data-en="COMPETITION">COMPETENCIA</div>
+          <h4 class="card-title" data-es="El Rey Vallenato" data-en="The Vallenato King">El Rey Vallenato</h4>
+          <p class="card-text" data-es="El concurso principal donde acordeoneros de todo el país compiten por la corona más codiciada del folclor colombiano. Una tradición que ha catapultado talentos como Carlos Vives al mundo entero." data-en="The main competition where accordion players nationwide compete for the most coveted crown in Colombian folklore. A tradition that has launched talents like Carlos Vives to the world.">El concurso principal donde acordeoneros de todo el país compiten por la corona más codiciada del folclor colombiano. Una tradición que ha catapultado talentos como Carlos Vives al mundo entero.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Instrumentos vallenato"
+            src="img/La Trinidad Sagrada.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🥁</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="INSTRUMENTOS" data-en="INSTRUMENTS">INSTRUMENTOS</div>
+          <h4 class="card-title" data-es="La Trinidad Sagrada" data-en="The Sacred Trinity">La Trinidad Sagrada</h4>
+          <p class="card-text" data-es="El acordeón, la caja (tambor artesanal) y la guacharaca forman la base rítmica del vallenato. Estos tres instrumentos, unidos al canto, expresan la vida, el amor y el paisaje del Caribe colombiano." data-en="The accordion, the caja (artisanal drum), and the guacharaca form the rhythmic base of vallenato — three instruments that, combined with singing, express Caribbean Colombian life, love, and landscape.">El acordeón, la caja (tambor artesanal) y la guacharaca forman la base rítmica del vallenato. Estos tres instrumentos, unidos al canto, expresan la vida, el amor y el paisaje del Caribe colombiano.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Íconos del Vallenato" data-en="Vallenato Icons">Íconos del Vallenato</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Diomedes Díaz"
+            src="img/Diomedes-D_az-Grandes-_xitos-Remasterizados.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">⭐</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="EL CACIQUE" data-en="THE CHIEFTAIN">EL CACIQUE</div>
+          <h4 class="card-title" data-es="Diomedes Díaz" data-en="Diomedes Díaz">Diomedes Díaz</h4>
+          <p class="card-text" data-es="El cantante de vallenato más venerado de la historia colombiana. Su voz única y canciones como 'La creciente' y 'Bonita' marcaron generaciones enteras. Su legado vive en cada rincón de Valledupar." data-en="The most revered vallenato singer in Colombian history. His unique voice and songs like 'La creciente' and 'Bonita' marked entire generations. His legacy lives in every corner of Valledupar.">El cantante de vallenato más venerado de la historia colombiana. Su voz única y canciones como 'La creciente' y 'Bonita' marcaron generaciones enteras. Su legado vive en cada rincón de Valledupar.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Carlos Vives"
+            src="img/Carlos-Vives.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🌎</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="GANADOR DE GRAMMY" data-en="GRAMMY WINNER">GANADOR DE GRAMMY</div>
+          <h4 class="card-title" data-es="Carlos Vives" data-en="Carlos Vives">Carlos Vives</h4>
+          <p class="card-text" data-es="Llevó el vallenato a los escenarios internacionales con su fusión pop-vallenato. Con 'Clásicos de la Provincia' conquistó Latinoamérica y ganó múltiples Grammys, poniendo a Valledupar en el mapa global." data-en="He brought vallenato to international stages with his pop-vallenato fusion. With 'Clásicos de la Provincia' he conquered Latin America and won multiple Grammys, putting Valledupar on the global map.">Llevó el vallenato a los escenarios internacionales con su fusión pop-vallenato. Con 'Clásicos de la Provincia' conquistó Latinoamérica y ganó múltiples Grammys, poniendo a Valledupar en el mapa global.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Parque de la Vallenata"
+            src="img/Francisco el Hombre.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🏛️</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="LEYENDA" data-en="LEGEND">LEYENDA</div>
+          <h4 class="card-title" data-es="Francisco el Hombre" data-en="Francisco el Hombre">Francisco el Hombre</h4>
+          <p class="card-text" data-es="El legendario juglar Francisco Moscote, quien según la leyenda venció al diablo en un duelo de acordeones. Su estatua en el Parque de la Vallenata es el símbolo máximo de la identidad musical de la ciudad." data-en="The legendary troubadour Francisco Moscote, who according to legend defeated the devil in an accordion duel. His statue in the Parque de la Vallenata is the ultimate symbol of the city's musical identity.">El legendario juglar Francisco Moscote, quien según la leyenda venció al diablo en un duelo de acordeones. Su estatua en el Parque de la Vallenata es el símbolo máximo de la identidad musical de la ciudad.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ======= S2: NATURALEZA ======= -->
+<section id="naturaleza" class="bg-alt">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div class="section-label" data-es="ECOTURISMO" data-en="ECOTOURISM">ECOTURISMO</div>
+    <h2 class="section-title" data-es="<em>Naturaleza</em> Exuberante" data-en="Exuberant <em>Nature</em>"><em>Naturaleza</em> Exuberante</h2>
+    <p class="section-desc" data-es="Entre la Sierra Nevada y el río Guatapurí, una riqueza natural sin igual te espera." data-en="Between the Sierra Nevada and the Guatapurí river, unparalleled natural riches await you.">Entre la Sierra Nevada y el río Guatapurí, una riqueza natural sin igual te espera.</p>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Río Guatapurí y Balnearios" data-en="Guatapurí River and Swimming Holes">Río Guatapurí y Balnearios</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Río Guatapurí"
+            src="img/Balneario Hurtado.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🌊</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="RÍO" data-en="RIVER">RÍO</div>
+          <h4 class="card-title" data-es="Balneario Hurtado" data-en="Hurtado Swimming Hole">Balneario Hurtado</h4>
+          <p class="card-text" data-es="El balneario más popular de Valledupar. Las aguas cristalinas y frescas del río Guatapurí son el refugio ideal ante el calor caribeño. Los vallenatos disfrutan de este paisaje natural cada fin de semana en familia." data-en="Valledupar's most popular swimming spot. The crystal-clear, cool Guatapurí river waters are the perfect refuge from Caribbean heat. Locals enjoy this natural landscape with their families every weekend.">El balneario más popular de Valledupar. Las aguas cristalinas y frescas del río Guatapurí son el refugio ideal ante el calor caribeño. Los vallenatos disfrutan de este paisaje natural cada fin de semana en familia.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="La Mina Pueblo Bello"
+            src="img/balneario-la-mina-valledupar.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🏞️</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="CASCADA" data-en="WATERFALL">CASCADA</div>
+          <h4 class="card-title" data-es="La Mina, Pueblo Bello" data-en="La Mina, Pueblo Bello">La Mina, Pueblo Bello</h4>
+          <p class="card-text" data-es="Tesoro natural en las faldas de la Sierra Nevada. Sus pozos de aguas heladas y cascadas entre rocas graníticas son únicos en la región. Accesible solo caminando por senderos entre bosques nativos." data-en="Natural treasure on the slopes of the Sierra Nevada. Its icy pools and waterfalls between granite rocks are unique in the region. Only accessible by walking through native forest trails.">Tesoro natural en las faldas de la Sierra Nevada. Sus pozos de aguas heladas y cascadas entre rocas graníticas son únicos en la región. Accesible solo caminando por senderos entre bosques nativos.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Pueblo Arhuaco Nabusímake"
+            src="img/Nabusímake.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🌿</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="TURISMO INDÍGENA" data-en="INDIGENOUS TOURISM">TURISMO INDÍGENA</div>
+          <h4 class="card-title" data-es="Nabusímake" data-en="Nabusímake">Nabusímake</h4>
+          <p class="card-text" data-es="Territorio sagrado del pueblo Arhuaco en la Sierra Nevada. Un destino de turismo comunitario donde los visitantes conocen la cosmovisión indígena y conviven con los guardianes espirituales de la Sierra Nevada." data-en="Sacred territory of the Arhuaco people in the Sierra Nevada. A community tourism destination where visitors learn about indigenous worldview and live among the spiritual guardians of the Sierra Nevada.">Territorio sagrado del pueblo Arhuaco en la Sierra Nevada. Un destino de turismo comunitario donde los visitantes conocen la cosmovisión indígena y conviven con los guardianes espirituales de la Sierra Nevada.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Sierra Nevada de Santa Marta" data-en="Sierra Nevada de Santa Marta">Sierra Nevada de Santa Marta</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Sierra Nevada de Santa Marta"
+            src="img/fotografia_sierra_nevada_de_santa_marta_pico_cristobal_colon_y_simon_bolivar_autor_juan_otalvaro_2024.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🏔️</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="MARAVILLA NATURAL" data-en="NATURAL WONDER">MARAVILLA NATURAL</div>
+          <h4 class="card-title" data-es="La Montaña Costera Más Alta" data-en="The Highest Coastal Mountain">La Montaña Costera Más Alta</h4>
+          <p class="card-text" data-es="La Sierra Nevada de Santa Marta es la montaña costera más alta del mundo, con picos de más de 5.700 m. Visible desde Valledupar en días despejados, alberga ecosistemas únicos desde bosque seco hasta nieves perpetuas." data-en="The Sierra Nevada de Santa Marta is the world's highest coastal mountain, with peaks over 5,700 m. Visible from Valledupar on clear days, it hosts unique ecosystems from dry forest to perpetual snows.">La Sierra Nevada de Santa Marta es la montaña costera más alta del mundo, con picos de más de 5.700 m. Visible desde Valledupar en días despejados, alberga ecosistemas únicos desde bosque seco hasta nieves perpetuas.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Serranía del Perijá"
+            src="img/SERRANIA-PERIJA-2-1.jpeg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🦜</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="BIODIVERSIDAD" data-en="BIODIVERSITY">BIODIVERSIDAD</div>
+          <h4 class="card-title" data-es="Serranía del Perijá" data-en="Serranía del Perijá">Serranía del Perijá</h4>
+          <p class="card-text" data-es="Al oriente de Valledupar, esta reserva alberga cóndores, jaguares, osos de anteojos y cientos de aves endémicas. Uno de los pulmones verdes más importantes del norte de Colombia." data-en="East of Valledupar, this reserve is home to condors, jaguars, spectacled bears, and hundreds of endemic bird species. One of the most important green lungs in northern Colombia.">Al oriente de Valledupar, esta reserva alberga cóndores, jaguares, osos de anteojos y cientos de aves endémicas. Uno de los pulmones verdes más importantes del norte de Colombia.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Birdwatching Cesar"
+            src="img/Senderos Ecológicos.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🌄</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="AVISTAMIENTO" data-en="BIRDWATCHING">AVISTAMIENTO</div>
+          <h4 class="card-title" data-es="Senderos Ecológicos" data-en="Ecological Trails">Senderos Ecológicos</h4>
+          <p class="card-text" data-es="Senderos interpretativos en bosques nativos a las afueras de Valledupar. Con guías locales especializados en etnobotánica e historia natural, ideales para el avistamiento de aves endémicas del Caribe colombiano." data-en="Interpretive trails through native forests on Valledupar's outskirts. With local guides specialized in ethnobotany and natural history, ideal for spotting endemic Colombian Caribbean bird species.">Senderos interpretativos en bosques nativos a las afueras de Valledupar. Con guías locales especializados en etnobotánica e historia natural, ideales para el avistamiento de aves endémicas del Caribe colombiano.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ======= S3: GASTRONOMÍA ======= -->
+<section id="gastronomia">
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <div class="section-label" data-es="SABORES DEL CARIBE" data-en="CARIBBEAN FLAVORS">SABORES DEL CARIBE</div>
+    <h2 class="section-title" data-es="La <em>Gastronomía</em> Vallenata" data-en="Vallenata <em>Gastronomy</em>">La <em>Gastronomía</em> Vallenata</h2>
+    <p class="section-desc" data-es="Una cocina que mezcla tradición indígena, africana y española en cada plato." data-en="A cuisine blending indigenous, African, and Spanish tradition in every dish.">Una cocina que mezcla tradición indígena, africana y española en cada plato.</p>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Platos Tradicionales" data-en="Traditional Dishes">Platos Tradicionales</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Sancocho colombiano"
+            src="img/Sancocho Vallenato.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🍲</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="PLATO TÍPICO" data-en="TYPICAL DISH">PLATO TÍPICO</div>
+          <h4 class="card-title" data-es="Sancocho Vallenato" data-en="Vallenato Sancocho">Sancocho Vallenato</h4>
+          <p class="card-text" data-es="El plato rey de la cocina vallenata. Un caldo contundente con gallina criolla, yuca, ñame, mazorca y plátano verde, sazonado con cilantro cimarrón y ajo. Tradición de los domingos en las fondas del Cesar." data-en="The king dish of Vallenata cuisine. A hearty broth with free-range hen, yuca, yam, corn and green plantain, seasoned with wild cilantro and garlic. A Sunday tradition at Cesar's roadside fondas.">El plato rey de la cocina vallenata. Un caldo contundente con gallina criolla, yuca, ñame, mazorca y plátano verde, sazonado con cilantro cimarrón y ajo. Tradición de los domingos en las fondas del Cesar.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Cabrito asado"
+            src="img/cabrito-pepitoria-arepita.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🥩</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="PLATO EMBLEMA" data-en="EMBLEMATIC DISH">PLATO EMBLEMA</div>
+          <h4 class="card-title" data-es="Cabrito en Pepitoria" data-en="Cabrito en Pepitoria">Cabrito en Pepitoria</h4>
+          <p class="card-text" data-es="La cría de caprinos es tradición en el Cesar. El cabrito asado o en pepitoria es el plato emblema de la región, preparado en fiestas y celebraciones familiares con recetas transmitidas por generaciones." data-en="Goat farming is a tradition in Cesar. Roasted kid goat or 'en pepitoria' is the region's emblematic dish, prepared at celebrations with recipes passed down through generations.">La cría de caprinos es tradición en el Cesar. El cabrito asado o en pepitoria es el plato emblema de la región, preparado en fiestas y celebraciones familiares con recetas transmitidas por generaciones.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Arepa de huevo"
+            src="img/AREPA_HUEVO.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🌽</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="DESAYUNO" data-en="BREAKFAST">DESAYUNO</div>
+          <h4 class="card-title" data-es="Arepa de Huevo" data-en="Arepa de Huevo">Arepa de Huevo</h4>
+          <p class="card-text" data-es="El desayuno caribeño por excelencia: una arepa de maíz frita que encierra un huevo entero, servida con suero costeño y café negro. Se consigue en los mercados y con las palenqueras en toda la ciudad." data-en="The quintessential Caribbean breakfast: a fried corn arepa enclosing a whole egg, served with coastal sour cream and black coffee. Found in markets and with street vendors throughout the city.">El desayuno caribeño por excelencia: una arepa de maíz frita que encierra un huevo entero, servida con suero costeño y café negro. Se consigue en los mercados y con las palenqueras en toda la ciudad.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Dulces, Bebidas y Mercados" data-en="Sweets, Drinks and Markets">Dulces, Bebidas y Mercados</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Cocadas artesanales Colombia"
+            src="img/Dulces Artesanales.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🍭</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="DULCES TÍPICOS" data-en="TYPICAL SWEETS">DULCES TÍPICOS</div>
+          <h4 class="card-title" data-es="Dulces Artesanales" data-en="Artisanal Sweets">Dulces Artesanales</h4>
+          <p class="card-text" data-es="Cocadas, alegrías de maíz, bolitas de tamarindo y dulce de icaco son patrimonio gastronómico del Cesar. Las vendedoras en el Parque Federmann mantienen viva esta tradición centenaria con sabores únicos." data-en="Coconut sweets, corn candy, tamarind balls, and icaco candy are part of Cesar's gastronomic heritage. Vendors in Federmann Park keep this centuries-old tradition alive with unique flavors.">Cocadas, alegrías de maíz, bolitas de tamarindo y dulce de icaco son patrimonio gastronómico del Cesar. Las vendedoras en el Parque Federmann mantienen viva esta tradición centenaria con sabores únicos.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Chicha Colombia"
+            src="img/Chicha y Guarapo.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🥤</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="BEBIDAS ANCESTRALES" data-en="ANCESTRAL DRINKS">BEBIDAS ANCESTRALES</div>
+          <h4 class="card-title" data-es="Chicha y Guarapo" data-en="Chicha and Guarapo">Chicha y Guarapo</h4>
+          <p class="card-text" data-es="Las bebidas fermentadas de maíz (chicha) y caña (guarapo) tienen raíces indígenas y africanas. En Valledupar se preparan artesanalmente en familias y se ofrecen durante el Festival Vallenato." data-en="Fermented corn (chicha) and sugarcane (guarapo) drinks have indigenous and African roots. In Valledupar they are still handmade in families and offered during the Vallenato Festival.">Las bebidas fermentadas de maíz (chicha) y caña (guarapo) tienen raíces indígenas y africanas. En Valledupar se preparan artesanalmente en familias y se ofrecen durante el Festival Vallenato.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Mercado Colombia frutas"
+            src="img/MERCADO-PUBLICOJOAQUIN-RAMIREZ-12.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🛒</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="MERCADO" data-en="MARKET">MERCADO</div>
+          <h4 class="card-title" data-es="Mercado Público" data-en="Public Market">Mercado Público</h4>
+          <p class="card-text" data-es="El corazón gastronómico de la ciudad: frutas tropicales exóticas, especias, carnes y productos regionales en un bullicioso mercado popular. La mejor manera de entender la cultura alimentaria del Cesar." data-en="The gastronomic heart of the city: exotic tropical fruits, spices, meats, and regional products in a bustling popular market. The best way to understand Cesar's food culture.">El corazón gastronómico de la ciudad: frutas tropicales exóticas, especias, carnes y productos regionales en un bullicioso mercado popular. La mejor manera de entender la cultura alimentaria del Cesar.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ======= S4: CULTURA ======= -->
+<section id="cultura" class="bg-alt">
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <div class="section-label" data-es="HISTORIA Y TRADICIÓN" data-en="HISTORY AND TRADITION">HISTORIA Y TRADICIÓN</div>
+    <h2 class="section-title" data-es="<em>Cultura</em> e Historia" data-en="<em>Culture</em> and History"><em>Cultura</em> e Historia</h2>
+    <p class="section-desc" data-es="Fundada en 1550, Valledupar es una ciudad de historias profundas y tradiciones vivas." data-en="Founded in 1550, Valledupar is a city of deep stories and living traditions.">Fundada en 1550, Valledupar es una ciudad de historias profundas y tradiciones vivas.</p>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Monumentos y Arquitectura" data-en="Monuments and Architecture">Monumentos y Arquitectura</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Catedral Valledupar"
+            src="img/PARROQUIA-NUESTRA-SENORA-DEL-ROSARIO-1024x682.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">⛪</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="MONUMENTO NACIONAL" data-en="NATIONAL MONUMENT">MONUMENTO NACIONAL</div>
+          <h4 class="card-title" data-es="Catedral Inmaculada Concepción" data-en="Immaculate Conception Cathedral">Catedral Inmaculada Concepción</h4>
+          <p class="card-text" data-es="La catedral barroca del siglo XVIII es el corazón espiritual de Valledupar. Su fachada blanca y torres gemelas dominan el Parque Nicolás de Federmann y es Monumento Nacional de Colombia." data-en="The 18th-century baroque cathedral is the spiritual heart of Valledupar. Its white facade and twin towers dominate Nicolás de Federmann Park and it is a National Monument of Colombia.">La catedral barroca del siglo XVIII es el corazón espiritual de Valledupar. Su fachada blanca y torres gemelas dominan el Parque Nicolás de Federmann y es Monumento Nacional de Colombia.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Parque central Valledupar"
+            src="img/Parque Nicolás de Federmann.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🏟️</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="CENTRO HISTÓRICO" data-en="HISTORIC CENTER">CENTRO HISTÓRICO</div>
+          <h4 class="card-title" data-es="Parque Nicolás de Federmann" data-en="Nicolás de Federmann Park">Parque Nicolás de Federmann</h4>
+          <p class="card-text" data-es="El parque central lleva el nombre del conquistador alemán que fundó la ciudad. Es el corazón cívico donde se realizan conciertos, ferias y festividades culturales a lo largo de todo el año." data-en="The central park bears the name of the German conquistador who founded the city. It is the civic heart where concerts, fairs, and cultural festivities take place throughout the year.">El parque central lleva el nombre del conquistador alemán que fundó la ciudad. Es el corazón cívico donde se realizan conciertos, ferias y festividades culturales a lo largo de todo el año.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Valledupar panorámica"
+            src="img/Valledupar, Ciudad Modelo.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🏙️</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="CIUDAD" data-en="CITY">CIUDAD</div>
+          <h4 class="card-title" data-es="Valledupar, Ciudad Modelo" data-en="Valledupar, Model City">Valledupar, Ciudad Modelo</h4>
+          <p class="card-text" data-es="Capital del departamento del Cesar con más de 500.000 habitantes. Reconocida por su calidad de vida, infraestructura urbana moderna y por ser una de las ciudades más seguras y prósperas del Caribe colombiano." data-en="Capital of the Cesar department with over 500,000 inhabitants. Recognized for quality of life, modern urban infrastructure, and as one of the safest and most prosperous cities in the Colombian Caribbean.">Capital del departamento del Cesar con más de 500.000 habitantes. Reconocida por su calidad de vida, infraestructura urbana moderna y por ser una de las ciudades más seguras y prósperas del Caribe colombiano.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="subsection reveal">
+    <h3 class="subsection-title" data-es="Pueblos Indígenas y Artesanías" data-en="Indigenous Peoples and Crafts">Pueblos Indígenas y Artesanías</h3>
+    <div class="cards-grid">
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Mochila Arhuaca"
+            src="img/MOCHILA.jpeg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🪡</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="ARTESANÍA" data-en="CRAFTS">ARTESANÍA</div>
+          <h4 class="card-title" data-es="Mochilas Arhuacas" data-en="Arhuaco Mochilas">Mochilas Arhuacas</h4>
+          <p class="card-text" data-es="Tejidas por mujeres Arhuacas con patrones únicos que representan la cosmovisión del pueblo de la Sierra Nevada. Una de las artesanías más reconocidas y apreciadas en toda Colombia y el mundo." data-en="Woven by Arhuaco women with unique patterns representing the Sierra Nevada people's worldview. One of the most recognized and appreciated crafts throughout Colombia and worldwide.">Tejidas por mujeres Arhuacas con patrones únicos que representan la cosmovisión del pueblo de la Sierra Nevada. Una de las artesanías más reconocidas y apreciadas en toda Colombia y el mundo.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Carnaval Colombia"
+            src="img/Carnaval y Festividades.webp"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">🎭</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="CARNAVAL" data-en="CARNIVAL">CARNAVAL</div>
+          <h4 class="card-title" data-es="Carnaval y Festividades" data-en="Carnival and Festivities">Carnaval y Festividades</h4>
+          <p class="card-text" data-es="Coloridos desfiles de comparsas, disfraces y música recorren Valledupar en época de carnaval. Cada barrio compite con sus mejores bailarines y creaciones artísticas en días de fiesta y color." data-en="Colorful parades of floats, costumes, and music fill Valledupar's streets during carnival. Each neighborhood competes with its best dancers and artistic creations in days of celebration and color.">Coloridos desfiles de comparsas, disfraces y música recorren Valledupar en época de carnaval. Cada barrio compite con sus mejores bailarines y creaciones artísticas en días de fiesta y color.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-img-wrap">
+          <img class="card-img" loading="lazy" alt="Gabriel García Márquez"
+            src="img/García Márquez y el Caribe.jpg"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="fallback-icon">📚</div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag" data-es="LITERATURA" data-en="LITERATURE">LITERATURA</div>
+          <h4 class="card-title" data-es="García Márquez y el Caribe" data-en="García Márquez and the Caribbean">García Márquez y el Caribe</h4>
+          <p class="card-text" data-es="Valledupar y el Caribe colombiano inspiraron profundamente al Premio Nobel Gabriel García Márquez. Su universo literario —el realismo mágico— nació de paisajes, personajes y músicas de esta región." data-en="Valledupar and the Colombian Caribbean deeply inspired Nobel Prize winner Gabriel García Márquez. His literary universe — magical realism — was born from the landscapes, characters, and music of this region.">Valledupar y el Caribe colombiano inspiraron profundamente al Premio Nobel Gabriel García Márquez. Su universo literario —el realismo mágico— nació de paisajes, personajes y músicas de esta región.</p>
+          <p class="card-credit">© Wikimedia Commons</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ======= MAPA ======= -->
+<section id="mapa">
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <div class="section-label" data-es="NAVEGACIÓN INTERACTIVA" data-en="INTERACTIVE NAVIGATION">NAVEGACIÓN INTERACTIVA</div>
+    <h2 class="section-title" data-es="Rutas para <em>Explorar</em>" data-en="Routes to <em>Explore</em>">Rutas para <em>Explorar</em></h2>
+    <p class="section-desc" data-es="Filtra por categoría y descubre los puntos clave de Valledupar en el mapa." data-en="Filter by category and discover Valledupar's key spots on the map.">Filtra por categoría y descubre los puntos clave de Valledupar en el mapa.</p>
+  </div>
+  <div id="map-container">
+    <div class="map-routes">
+      <button class="route-btn active" onclick="showRoute('all',this)" data-es="🗺 Todos" data-en="🗺 All">🗺 Todos</button>
+      <button class="route-btn" onclick="showRoute('musica',this)" data-es="🎶 Ruta Musical" data-en="🎶 Music Route">🎶 Ruta Musical</button>
+      <button class="route-btn" onclick="showRoute('naturaleza',this)" data-es="🌿 Ruta Natural" data-en="🌿 Nature Route">🌿 Ruta Natural</button>
+      <button class="route-btn" onclick="showRoute('cultura',this)" data-es="🏛 Ruta Cultural" data-en="🏛 Cultural Route">🏛 Ruta Cultural</button>
+      <button class="route-btn" onclick="showRoute('gastronomia',this)" data-es="🍽 Ruta Gastronómica" data-en="🍽 Food Route">🍽 Ruta Gastronómica</button>
+    </div>
+    <div id="map"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-brand">VALLEDUPAR</div>
+  <p class="footer-text" data-es="Ciudad de la Música · Departamento del Cesar · Colombia" data-en="City of Music · Department of Cesar · Colombia">Ciudad de la Música · Departamento del Cesar · Colombia</p>
+</footer>
+
+<script>
+// ===== LANGUAGE =====
+let currentLang = 'es';
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('#lang-toggle button').forEach((b,i)=>b.classList.toggle('active',(i===0&&lang==='es')||(i===1&&lang==='en')));
+  document.querySelectorAll('[data-es]').forEach(el=>{const v=el.getAttribute('data-'+lang);if(v)el.innerHTML=v;});
+  allMarkers.forEach(m=>m.leaflet.setPopupContent(buildPopup(m.data,lang)));
+}
+
+// ===== MAP =====
+const map=L.map('map',{center:[10.4681,-73.2532],zoom:13});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © Carto',maxZoom:19}).addTo(map);
+
+const catColors={musica:'#C9962D',naturaleza:'#2D9A4E',cultura:'#B84A2E',gastronomia:'#9B5DC0'};
+
+const sites=[
+  {lat:10.4793,lng:-73.2538,cat:'musica',icon:'🎶',nameEs:'Parque de la Vallenata',nameEn:'Parque de la Vallenata',tagEs:'CULTURA MUSICAL',tagEn:'MUSICAL CULTURE',descEs:'Corazón musical con la estatua de Francisco el Hombre.',descEn:'Musical heart with the Francisco el Hombre statue.'},
+  {lat:10.4767,lng:-73.2531,cat:'cultura',icon:'⛪',nameEs:'Catedral de la Concepción',nameEn:'Concepción Cathedral',tagEs:'MONUMENTO NACIONAL',tagEn:'NATIONAL MONUMENT',descEs:'Catedral barroca del siglo XVIII.',descEn:'18th-century baroque cathedral.'},
+  {lat:10.4771,lng:-73.2508,cat:'cultura',icon:'🏛️',nameEs:'Parque Nicolás de Federmann',nameEn:'Nicolás de Federmann Park',tagEs:'PARQUE CENTRAL',tagEn:'CENTRAL PARK',descEs:'Plaza central y corazón cívico de la ciudad.',descEn:'Central plaza and civic heart of the city.'},
+  {lat:10.4870,lng:-73.2432,cat:'naturaleza',icon:'🌊',nameEs:'Balneario Hurtado',nameEn:'Hurtado Swimming Hole',tagEs:'RÍO GUATAPURÍ',tagEn:'GUATAPURÍ RIVER',descEs:'Aguas cristalinas del río Guatapurí.',descEn:'Crystal-clear Guatapurí river waters.'},
+  {lat:10.4650,lng:-73.2610,cat:'gastronomia',icon:'🛒',nameEs:'Mercado Público',nameEn:'Public Market',tagEs:'GASTRONOMÍA',tagEn:'GASTRONOMY',descEs:'Frutas exóticas, especias y platos típicos del Cesar.',descEn:'Exotic fruits, spices, and typical Cesar dishes.'},
+  {lat:10.4755,lng:-73.2579,cat:'musica',icon:'🎵',nameEs:'Casa del Vallenato',nameEn:'Casa del Vallenato',tagEs:'FUNDACIÓN',tagEn:'FOUNDATION',descEs:'Archivo y museo del vallenato. Sede del Festival.',descEn:'Vallenato archive and museum. Festival headquarters.'},
+  {lat:10.4820,lng:-73.2505,cat:'musica',icon:'🏟️',nameEs:'Estadio Sierra Nevada',nameEn:'Sierra Nevada Stadium',tagEs:'SEDE FESTIVAL',tagEn:'FESTIVAL VENUE',descEs:'Sede del Festival de la Leyenda Vallenata.',descEn:'Festival de la Leyenda Vallenata main venue.'},
+  {lat:10.4680,lng:-73.2490,cat:'gastronomia',icon:'🍲',nameEs:'Fondas Tradicionales',nameEn:'Traditional Fondas',tagEs:'COCINA TÍPICA',tagEn:'TYPICAL FOOD',descEs:'Mejor sancocho, cabrito y arepas de Valledupar.',descEn:'Best sancocho, goat and arepas in Valledupar.'},
+  {lat:10.4740,lng:-73.2560,cat:'cultura',icon:'🪡',nameEs:'Artesanías Arhuacas',nameEn:'Arhuaco Crafts',tagEs:'ARTESANÍAS',tagEn:'CRAFTS',descEs:'Mochilas tejidas a mano por artesanos Arhuacos.',descEn:'Hand-woven mochilas by Arhuaco artisans.'},
+  {lat:10.4700,lng:-73.2555,cat:'gastronomia',icon:'🍭',nameEs:'Dulcería del Parque',nameEn:'Park Sweet Shop',tagEs:'DULCES',tagEn:'SWEETS',descEs:'Cocadas, bolitas de tamarindo y dulces tradicionales.',descEn:'Cocadas, tamarind balls, and traditional sweets.'},
+  {lat:10.4800,lng:-73.2470,cat:'naturaleza',icon:'🌿',nameEs:'Sendero Ecológico',nameEn:'Ecological Trail',tagEs:'ECOTURISMO',tagEn:'ECOTOURISM',descEs:'Sendero para avistamiento de aves y flora nativa.',descEn:'Trail for birdwatching and native flora.'},
+  {lat:10.4760,lng:-73.2600,cat:'cultura',icon:'📚',nameEs:'Centro Cultural del Cesar',nameEn:'Cesar Cultural Center',tagEs:'CULTURA',tagEn:'CULTURE',descEs:'Exposiciones, teatro y eventos culturales todo el año.',descEn:'Exhibitions, theater, and cultural events year-round.'},
+];
+
+function buildPopup(d,lang){lang=lang||currentLang;return`<div style="font-family:Georgia,serif;min-width:190px;padding:4px"><div style="font-size:28px;text-align:center;margin-bottom:6px">${d.icon}</div><strong style="font-size:16px;display:block;margin-bottom:3px;color:#1A0A00">${lang==='es'?d.nameEs:d.nameEn}</strong><span style="font-size:10px;letter-spacing:2px;color:#C9962D;font-family:sans-serif">${lang==='es'?d.tagEs:d.tagEn}</span><p style="font-size:13px;margin-top:6px;line-height:1.5;color:#444">${lang==='es'?d.descEs:d.descEn}</p></div>`;}
+
+const allMarkers=[];
+sites.forEach(d=>{
+  const icon=L.divIcon({html:`<div style="background:${catColors[d.cat]};width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid rgba(255,255,255,0.25);box-shadow:0 4px 16px rgba(0,0,0,0.5)">${d.icon}</div>`,className:'',iconSize:[42,42],iconAnchor:[21,21]});
+  const lm=L.marker([d.lat,d.lng],{icon}).addTo(map).bindPopup(buildPopup(d),{maxWidth:260});
+  allMarkers.push({leaflet:lm,data:d,cat:d.cat});
+});
+
+function showRoute(cat,btn){
+  document.querySelectorAll('.route-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  allMarkers.forEach(({leaflet,cat:c})=>{if(cat==='all'||c===cat)leaflet.addTo(map);else map.removeLayer(leaflet);});
+  if(cat!=='all'){const f=sites.filter(s=>s.cat===cat);const lats=f.map(s=>s.lat),lngs=f.map(s=>s.lng);map.fitBounds([[Math.min(...lats)-0.01,Math.min(...lngs)-0.015],[Math.max(...lats)+0.01,Math.max(...lngs)+0.015]]);}
+  else map.setView([10.4681,-73.2532],13);
+}
+
+// ===== SCROLL REVEAL =====
+const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:0.08});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
